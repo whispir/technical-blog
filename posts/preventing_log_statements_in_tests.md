@@ -1,4 +1,4 @@
-T# Disallowing warning/error messages in tests. 
+# Disallowing warning/error messages in tests. 
 
 Often when running Jest tests, errors or warnings will be thrown up, but the tests will be passing fine. 
 
