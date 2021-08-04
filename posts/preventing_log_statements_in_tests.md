@@ -234,7 +234,6 @@ console.warn = (message: string | Error, ...rest) => {
 
   for (let allowString of warnAllowList) {
     if (str.includes(allowString)) {
-      console.log(allowString);
       return; // exit early
     }
   }
