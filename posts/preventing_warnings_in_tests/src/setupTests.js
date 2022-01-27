@@ -3,7 +3,7 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
-import { registerWarning } from './testUtils';
+import { cleanUpTest, registerTest, registerWarning } from './testUtils';
 
 
 
@@ -17,6 +17,8 @@ const {warn, error} = console;
  * Iteration 1
  */
 console.warn = (...args) => {
+          registerWarning(...args); 
+
     warn(...args); 
     throw new Error("Encountered a console.warn message! Please fix this!");
 }
@@ -27,6 +29,16 @@ console.error = (...args) => {
     error(...args);     
     throw new Error("Encountered a console.error message! Please fix this!");
 }
+
+
+beforeEach(() => {
+    registerTest();
+}); 
+
+
+afterEach(() => {
+    cleanUpTest();
+}); 
 
 
 /**

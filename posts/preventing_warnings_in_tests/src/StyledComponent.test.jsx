@@ -3,14 +3,6 @@ import { MyOuterComponent } from "./StyledComponent";
 import { cleanUpTest, registerTest } from "./testUtils";
 
 
-beforeEach(() => {
-    registerTest();
-}); 
-
-
-afterEach(() => {
-    cleanUpTest();
-}); 
 
 
 describe("StyledComponent", () => {
