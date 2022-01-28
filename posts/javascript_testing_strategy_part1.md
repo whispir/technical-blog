@@ -1,5 +1,13 @@
 The following are some thoughts regarding testing all things JavaScript (frontend and backend). 
 
+# Structure
+
+## Part 1 - Types of tests and developer deployment strategies 
+
+In the first section I'll talk about the kinds of tests we'll write, as well as deployment strategies for a developer to deploy their code on/from their own machine, in order to both test and develop. 
+
+
+
 
 # Summary of test types
 
@@ -9,29 +17,22 @@ ie. involves the DOM, browser APIs etc.
 
 ### Unit tests 
 
-Use RTL. 
-
-Individual tests should run quickly. It's ok if the entire suite takes a while, but of course, faster is better. 
-
-These are the tests that devs should run most often. 
+- Use RTL. 
+- Individual tests should run quickly. It's ok if the entire suite takes a while, but of course, faster is better. 
+- These are the tests that devs should run most often. 
 
 ### Real Browser Tests 
 
-eg. Cypress 
-
-It's ok if these take longer. 
-
-Devs should be able to run these on their local machine. 
- 
-However they don't need to routinely. 
-
-If you can make something a unit test instead, then do. 
+- eg. Cypress 
+- It's ok if these take longer. 
+- Devs _should_ be able to run these on their local machine, but they don't _need_ to as part of their development workflow.
+- If you can make something a unit test instead, then do. 
 
 Cypress requires a deployed application to run against. This means that often your frontend will also  require some kind of real backend to be talking to (see integrated tests). 
 
 ## Backend Specific
 
-ie. involves running a node process
+- ie. involves running a node process
 
 Testing your backend can pose challenges, depending on what your backend looks like, generally there are 2.5 options: 
 
@@ -49,9 +50,11 @@ However, testing lambdas can be more difficult, because the lambda requires an A
 
 #### Options for running lambda's locally: 
 
-- SAM CLI 
-- Roll your own 
-- Deploy to real infra via terraform
+- AWS SAM CLI (https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) 
+- Serverless CLI - if you are using Serverless framework (https://www.serverless.com/framework/docs/providers/aws/cli-reference)
+- Roll your own
+  - Essentially, build a simple HTTP service that converts the HTTP requests into calls of the lambda handler function. (ADD LINK) 
+- Deploy to real infrastructure via terraform or similar. 
 
 ### Super Test 
 
@@ -59,7 +62,9 @@ https://www.npmjs.com/package/supertest
 
 I've had good experiences with this tool. 
 
-Here's an example of what the code might look like: 
+Supertest allows you to 'run' the application, as well as make HTTP-like calls against it, all within the same process. 
+
+Here's an example of what the code might look like, from their documentation: 
 
 ```javascript
 const request = require('supertest');
@@ -168,7 +173,7 @@ Tests where you might have some form of deployed frontend, making requests again
 
 # Developer Deployment Strategies
 
-So given that some of the testing strategies above require some kind of integration, it pays to talk about 'how do we run the code, in a developement or testing environment?' 
+Given that some of the testing strategies above require some kind of integration, it pays to talk about 'how do we run the code, in a developement or testing environment?' 
 
 ## Frontend
 
@@ -188,6 +193,15 @@ The process is:
 
 - For each microservice (or for your one service), run `yarn start`
 
+Pros: 
+- Simple. 
+- Fast to start
+- Live reload 
+
+
+Cons: 
+- Networking multiple microservices might get complicated. 
+
 ### Docker Compose/Kubernetes
 
 If using docker, and you have a microservices architecture Docker Compose/Kubernetes can be an effective way to run all of your microservices. 
@@ -197,7 +211,47 @@ The process is:
 - For each microservice, build the docker image
 - Run `docker-compose up`
 
+Pros: 
+- Simple, especially if networking microservices is required. 
+
+Cons: 
+- Requires more tooling on developer's machine (installing docker, docker-compose). 
+- Slower to start (requires building the docker images)*
+- No live reload*
+
+*Actually I'm sure there's a way using volumes to allow the docker image to live see changes on the dev's hard disk. This isn't something I've done. 
+
 ### Terraform - Deploy to real infrastructure
+
+The process is: 
+
+- For each microservice, build the code
+- Run `terraform apply` 
+
+Pros: 
+- The deployed environment closely resembles how it will be in production. 
+
+Cons: 
+- Can be very slow.
+- Definitely no live reload. 
+
+### Conclusion 
+
+The simplicity of 'just start a process' - and its inherent ability to do live reload means that I favour this approach. 
+
+Where this starts falling down is if you need to network multiple microservices. 
+
+_However,_ the need to network microservices should probably apply only for integration tests. 
+
+You shouldn't need to network your microservices for running unit tests on them. And in fact, for unit tests you shouldn't need to run a seperate process, the tests and the application code should run in the same process (by using SuperTest for example). 
+
+
+
+
+
+
+
+
 
 
 

@@ -1,7 +1,7 @@
-import logo from './logo.svg';
 import './App.css';
 import { useState } from 'react';
 import { UserProfile } from './components/UserProfile';
+import { TodoList } from './components/TodoList';
 
 function App() {
 
@@ -10,8 +10,10 @@ function App() {
     email: "bob@foo.com"
   }); 
 
-  return <UserProfile user = {user} onSaveUser = {setUser}/>
-  
+  return <div>
+    <TodoList/>
+    <UserProfile user = {user} onSaveUser = {setUser}/>
+  </div>
 }
 
 export default App;
