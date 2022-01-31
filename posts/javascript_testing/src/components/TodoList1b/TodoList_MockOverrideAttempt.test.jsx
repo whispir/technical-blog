@@ -8,8 +8,8 @@ jest.mock('./todoListService');
 // Import it, so we have access to it. 
 import {fetchTodos} from "./todoListService";
 
-describe('Example 1b - <TodoList/>', () => {
-    it.skip("Shows the todo after loading has completed", async () => {
+describe.skip('Example 1b - <TodoList/>', () => {
+    it("Shows the todo after loading has completed", async () => {
  
         fetchTodos.mockResolvedValue([
             {

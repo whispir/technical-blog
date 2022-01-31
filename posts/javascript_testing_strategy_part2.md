@@ -11,6 +11,7 @@ Dependency injection involves _injecting_ a function or service into the thing t
 Take this simple React component: 
 
 ```jsx
+//TodoList0/TodoList.jsx
 import React, { useEffect, useState } from 'react';
 
 export const TodoList = () => {
@@ -49,6 +50,7 @@ export const TodoList = () => {
 This works fine, and we can even write a working test for it: 
 
 ```jsx
+//TodoList0/TodoList.test.jsx
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import React from 'react';
 import { TodoList } from './TodoList';
@@ -114,7 +116,7 @@ In this approach we make some small changes:
 We pull the logic of fetching the todos out into its own function in a seperate module 
 
 ```js
-//todoListService2.js
+//TodoList1a/todoListService.js
 export async function fetchTodos () {
     const res = await fetch('https://jsonplaceholder.typicode.com/todos');
     const json = await res.json();
@@ -126,7 +128,7 @@ export async function fetchTodos () {
 And we import this function and all it inside the TodoList, as we did before: 
 
 ```js
-// TodoList.jsx
+// TodoList1a/TodoList.jsx
 import React, { useEffect, useState } from 'react';
 import { fetchTodos } from './todoListService2';
 export const TodoList2 = () => {
@@ -144,32 +146,31 @@ export const TodoList2 = () => {
 Now, we can _mock_ the behaviour of that function using [jest's module mocking functionality](https://jestjs.io/docs/jest-object#jestmockmodulename-factory-options)
 
 ```jsx
-//TodoList2.test.jsx
+//TodoList1a/TodoList.test.jsx
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import React from 'react';
-import { TodoList2 } from './TodoList2';
+import {TodoList} from "./TodoList"; 
 
-// By calling mock on just the module name, jest will _auto_mock_ the functions in it
-jest.mock('./todoListService2'); 
+// Mock the module
+jest.mock('./todoListService');
 
-// Now the thing that is imported, will be a `jest.fn` mock function. 
-import {fetchTodos} from "./todoListService2"; 
+// Import it, so we have access to it. 
+import {fetchTodos} from "./todoListService";
 
-describe('<TodoList2/>', () => {
+describe('Example 1b - <TodoList/>', () => {
     it("Shows the todo after loading has completed", async () => {
-
-        // Decide what the fetchTodos function should do when called
+ 
         fetchTodos.mockResolvedValue([
             {
                 "userId": 1,
                 "id": 1,
-                "title": "foo",
+                "title": "foo", 
                 "completed": false
               },
         ]);
 
         // Render the component
-        render(<TodoList2 />);
+        render(<TodoList />);
 
         // Assert that the loading text is there 
         const loadingText = screen.getByText("Loading...");
@@ -181,9 +182,9 @@ describe('<TodoList2/>', () => {
         // Check for the existence of one of our todos
         const todoText = screen.getByText("foo");
         expect(todoText).toBeInTheDocument();
+
     });
 });
-
 ```
 
 Now this works, and is a lot easier to deal with: 
@@ -214,7 +215,7 @@ However, this objection is specific to way the I've done the module mocking here
 
 If we instead use the jest `__mocks__` pattern, we can set a series of permenent mocks will be present in all tests. 
 
-### Dependency Injection Approach 1a - Module Mocks
+### Dependency Injection Approach 1b - Module Mocks
 
 ☝️ I've only just discovered/cottoned-on to the potential use of this pattern, and I'm not particularly familiar with it. 
 
@@ -224,7 +225,7 @@ In this example we follow the guide in the [Manual Mocks section of the jest doc
 First we create a `__mocks__` folder in beside the module we want to mock, and we create a new module there. 
 
 ```js
-//__mocks__/todoListService.js
+//TodoList1b/__mocks__/todoListService.js
 export const  fetchTodos = async () => [           {
     "userId": 1,
     "id": 1,
@@ -237,10 +238,14 @@ export const  fetchTodos = async () => [           {
 Now in our test we can do away with any of the mocking. Instead of the real function being called, this function will be called instead. 
 
 ```jsx
-//TodoList.test.jsx
+//TodoList1b/TodoList.test.jsx
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import React from 'react';
 import {TodoList} from "./TodoList"; 
+
+// We still need to state that we are mocking the service
+// But the implementation is defined by what is in the mocks folder
+jest.mock('./todoListService');
 
 describe('Example 1b - <TodoList/>', () => {
     it("Shows the todo after loading has completed", async () => {
@@ -262,6 +267,7 @@ describe('Example 1b - <TodoList/>', () => {
     });
 });
 
+
 ```
 
 🚨 Here's what I don't like about this approach. 
@@ -271,17 +277,19 @@ It now seems impossible to mock that module (and for example, change the behavio
 For example: 
 
 ```jsx
-//TodoList_MockAttempt.test.jsx
-
+///TodoList1b/TodoList_MockOverrideAttempt.test.jsx
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import React from 'react';
 import {TodoList} from "./TodoList"; 
 
-import {fetchTodos} from "./todoListService";
+// Mock the module
 jest.mock('./todoListService');
 
+// Import it, so we have access to it. 
+import {fetchTodos} from "./todoListService";
+
 describe('Example 1b - <TodoList/>', () => {
-    it("Shows the todo after loading has completed", async () => {
+    it.skip("Shows the todo after loading has completed", async () => {
  
         fetchTodos.mockResolvedValue([
             {
@@ -308,6 +316,7 @@ describe('Example 1b - <TodoList/>', () => {
 
     });
 });
+
 
 ```
 
@@ -345,7 +354,7 @@ export const  fetchTodos = jest.fn().mockResolvedValue([
 
 ```
 
-But this doesn't work - the function will come through as a jest mock function, but it will not return anything. 
+But this doesn't work - the function will come through as a jest mock function, but it will not return anything. I believe this is because the mock function  is being reset and the 'mockResolvedValue' being cleared, before the test runs. [See the section at the end of the page about this.](#note-about-mock-resets) 
 
 I believe this GitHub issue may describe it: 
 
@@ -363,6 +372,7 @@ All this to say that I think I'm feeling vindicated in my opposition to module m
 In this example, instead of importing `fetchTodos` from a module, we instead recieve it as a prop: 
 
 ```jsx
+//TodoList2/TodoList.jsx
 export const TodoList = (props) => {
 
     const {fetchTodos} = props; 
@@ -384,6 +394,9 @@ export const TodoList = (props) => {
 Now in our test, we just need to provide the function as a prop: 
 
 ```jsx
+
+//TodoList2/TodoList.test.jsx
+
         //...
         const fakeFetchTodos = jest.fn().mockResolvedValue([
             {
@@ -426,8 +439,6 @@ export const App = () => {
 But what say instead we had some intermediate component that the TodoList lives in? 
 
 ```jsx
-//App.jsx
-
 async function fetchTodos () {
     const res = await fetch('https://jsonplaceholder.typicode.com/todos');
     const json = await res.json();
@@ -443,7 +454,6 @@ export const App = () => {
 ```
 
 ```jsx
-
 export const UserHomePage = (props) => {
     const {fetchTodos} = props; 
     return <div>
@@ -466,8 +476,7 @@ In this example, instead of accessing the `fetchTodos` function via props, we ac
 We first create some React Context to provide the `fetchTodos` function 
 
 ```jsx
-//FetchTodosProvider.jsx
-
+//TodoList3/FetchTodosProvider.jsx
 import React from "react"; 
 
 // Our default ('real') function
@@ -485,15 +494,15 @@ export const FetchTodosContext = React.createContext({
 // Create a provider component 
 export const FetchTodosProvider = (props) => {
     const {fetchTodos, children} = props; 
-    return <FetchTodosContext.Provider fetchTodos = {fetchTodos}>
+    return <FetchTodosContext.Provider value = {{fetchTodos}}>
         {children}
     </FetchTodosContext.Provider>
 }
 // Create a hook to access the fetchTodos function 
 export const useFetchTodos = () => {
+
     return React.useContext(FetchTodosContext).fetchTodos; 
 }
-
 ```
 
 ☝️ There is a good argument for not providing default services. See part three. 
@@ -501,13 +510,17 @@ export const useFetchTodos = () => {
 We can now access `fetchTodos` via the hook: 
 
 ```js
-    // Get the fetchTodos function from the hook. 
-    const fetchTodos = useFetchTodos();
+//TodoList3/TodoList.jsx
+//...
+
+// Get the fetchTodos function from the hook. 
+const fetchTodos = useFetchTodos();
 ```
 
 Our test can now look like this: 
 
 ```jsx
+//TodoList3/TodoList.test.jsx
 describe('Example 3 - <TodoList/>', () => {
     it("Shows the todo after loading has completed", async () => {
         
@@ -555,6 +568,9 @@ Essentially, we inject the dependency via a prop as we did in example 2.
 We now create a function that is responsible for passing the service in: 
 
 ```jsx
+//TodoList4/TodoList.jsx
+
+//...
 export const withFetchTodosService = (Component) => () =>  {
     async function fetchTodos () {
         const res = await fetch('https://jsonplaceholder.typicode.com/todos');
@@ -632,10 +648,14 @@ export const ServicedTodoList = withFetchTodosService(TodoList);
 
 But this is getting hard to reason about, I really don't like that module mutation, and you know, that's basically what we're doing with the context provider, we're saying 'This the state of our services that we want to mount this component in'. 
 
-🧐 This does take us to another interesting discussion though, within a React context we can just use Context, but what about for plain ol' JavaScript programming, how would we inject dependencies without the `useContext` hook? Let's talk about that in a later section. 
+🧐 This does take us to another interesting discussion though, within a React applicatin we can just use Context, but what about for plain ol' JavaScript programming, how would we inject dependencies without the `useContext` hook? Let's talk about that in a later section. 
 
 
+### Note about mock resets. 
 
+☝️ I haven't fulled investigated this yet. 
+
+It appears that the default CRA jest configuration likely has reset mocks on, and this means that any mock functions you declare outside the test (eg. in the __mocks__ file, will be reset to no implementation, by the time the test runs). 
 
 
 

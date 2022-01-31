@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react';
 
 export const TodoList = (props) => {
 
-
     const {fetchTodos} = props; 
     const [isLoading, setIsLoading] = useState(true); 
     const [todos, setTodos] = useState([]);
-
 
     // When the component mounts, we fetch the todos from the server
     useEffect(async () => {
