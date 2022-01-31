@@ -107,7 +107,7 @@ And so long as we have a server running on `localhost:3000` that is going to ser
 
 But this is _way_ too much work. I don't want to write an entire server, just to write my tests. 
 
-### Dependency Injection Approach 1 - Module Mocking 
+### Dependency Injection Approach 1a - Manual Module Mocking 
 
 In this approach we make some small changes: 
 
@@ -209,6 +209,339 @@ export const MyApplication = () => {
 And lets say we don't care about the behaviour of `TodoList` in this component, we're just going to check that the text `Hello World!` is on the screen. 
 
 Now when we go to test this, unless we're mocking that module again, we're going to have some of the same problems as the first approach - we're now making real API calls when we run the test. 
+
+However, this objection is specific to way the I've done the module mocking here. 
+
+If we instead use the jest `__mocks__` pattern, we can set a series of permenent mocks will be present in all tests. 
+
+### Dependency Injection Approach 1a - Module Mocks
+
+☝️ I've only just discovered/cottoned-on to the potential use of this pattern, and I'm not particularly familiar with it. 
+
+
+In this example we follow the guide in the [Manual Mocks section of the jest documentation](https://jestjs.io/docs/manual-mocks).
+
+First we create a `__mocks__` folder in beside the module we want to mock, and we create a new module there. 
+
+```js
+//__mocks__/todoListService.js
+export const  fetchTodos = async () => [           {
+    "userId": 1,
+    "id": 1,
+    "title": "foo",
+    "completed": false
+  }];
+
+```
+
+Now in our test we can do away with any of the mocking. Instead of the real function being called, this function will be called instead. 
+
+```jsx
+//TodoList.test.jsx
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import React from 'react';
+import {TodoList} from "./TodoList"; 
+
+describe('Example 1b - <TodoList/>', () => {
+    it("Shows the todo after loading has completed", async () => {
+ 
+        // Render the component
+        render(<TodoList />);
+
+        // Assert that the loading text is there 
+        const loadingText = screen.getByText("Loading...");
+        expect(loadingText).toBeInTheDocument();
+
+        // Wait for the loading text to disappear
+        await waitForElementToBeRemoved(loadingText);
+
+        // Check for the existence of one of our todos
+        const todoText = screen.getByText("foo");
+        expect(todoText).toBeInTheDocument();
+
+    });
+});
+
+```
+
+🚨 Here's what I don't like about this approach. 
+
+It now seems impossible to mock that module (and for example, change the behaviour of it). 
+
+For example: 
+
+```jsx
+//TodoList_MockAttempt.test.jsx
+
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import React from 'react';
+import {TodoList} from "./TodoList"; 
+
+import {fetchTodos} from "./todoListService";
+jest.mock('./todoListService');
+
+describe('Example 1b - <TodoList/>', () => {
+    it("Shows the todo after loading has completed", async () => {
+ 
+        fetchTodos.mockResolvedValue([
+            {
+                "userId": 1,
+                "id": 1,
+                "title": "bar", // Changing the title to bar
+                "completed": false
+              },
+        ]);
+
+        // Render the component
+        render(<TodoList />);
+
+        // Assert that the loading text is there 
+        const loadingText = screen.getByText("Loading...");
+        expect(loadingText).toBeInTheDocument();
+
+        // Wait for the loading text to disappear
+        await waitForElementToBeRemoved(loadingText);
+
+        // Check for the existence of one of our todos
+        const todoText = screen.getByText("bar");
+        expect(todoText).toBeInTheDocument();
+
+    });
+});
+
+```
+
+This fails with: 
+
+```
+  ● Example 1b - <TodoList/> › Shows the todo after loading has completed
+
+    TypeError: _todoListService.fetchTodos.mockResolvedValue is not a function
+
+       9 |     it("Shows the todo after loading has completed", async () => {
+      10 |
+    > 11 |         fetchTodos.mockResolvedValue([
+```
+
+
+I also can't make assertions on the function, like: 
+
+```js
+expect(fetchTodos).toHaveBeenCalled();
+```
+
+I tried changing the implmentation of the mock module to: 
+
+```js
+
+export const  fetchTodos = jest.fn().mockResolvedValue([
+      {
+    "userId": 1,
+    "id": 1,
+    "title": "foo",
+    "completed": false
+  }
+])
+
+```
+
+But this doesn't work - the function will come through as a jest mock function, but it will not return anything. 
+
+I believe this GitHub issue may describe it: 
+
+https://github.com/facebook/jest/issues/10419
+
+Also: 
+
+https://github.com/facebook/jest/issues/5969
+
+
+All this to say that I think I'm feeling vindicated in my opposition to module mocking. 
+
+### Dependency Injection 2 - Dependency as a prop
+
+In this example, instead of importing `fetchTodos` from a module, we instead recieve it as a prop: 
+
+```jsx
+export const TodoList = (props) => {
+
+    const {fetchTodos} = props; 
+    const [isLoading, setIsLoading] = useState(true); 
+    const [todos, setTodos] = useState([]);
+
+    // When the component mounts, we fetch the todos from the server
+    useEffect(async () => {
+        const json = await fetchTodos();
+        setTodos(json);
+        setIsLoading(false); 
+    }, []);
+
+
+    //...
+
+```
+
+Now in our test, we just need to provide the function as a prop: 
+
+```jsx
+        //...
+        const fakeFetchTodos = jest.fn().mockResolvedValue([
+            {
+                "userId": 1,
+                "id": 1,
+                "title": "foo", 
+                "completed": false
+              },
+        ])
+        // Render the component
+        render(<TodoList fetchTodos = {fakeFetchTodos} />);
+
+        //...
+```
+
+So this is nice, it does away with all of the complications of module mocking, while still allowing us to easily mock the behaviour of our `fetchTodos` function. 
+
+This also allows us to later change the implementation of how we fetch the todos (for example, maybe switching over to GraphQL), without having to change anything inside of the TodoList component. All we need to do is provide a different function that has the same signature. 
+
+But there's a slight problem with this solution as is. 
+
+In our application as it currently is, we'll likely provide the real `fetchTodos` function at the top level in the `App` component
+
+```jsx
+async function fetchTodos () {
+    const res = await fetch('https://jsonplaceholder.typicode.com/todos');
+    const json = await res.json();
+
+    return json; 
+}
+
+export const App = () => {
+    return <div> 
+        <TodoList fetchTodos = {fetchTodos}/>
+    </div>
+}
+```
+
+
+But what say instead we had some intermediate component that the TodoList lives in? 
+
+```jsx
+//App.jsx
+
+async function fetchTodos () {
+    const res = await fetch('https://jsonplaceholder.typicode.com/todos');
+    const json = await res.json();
+
+    return json; 
+}
+
+export const App = () => {
+    return <div> 
+        <UserHomePage fetchTodos={fetchTodos}/>
+    </div>
+}
+```
+
+```jsx
+
+export const UserHomePage = (props) => {
+    const {fetchTodos} = props; 
+    return <div>
+            <TodoList fetchTodos = {fetchTodos}/>
+    </div>
+}
+```
+Now we're doing a prop drilling pattern, which isn't very nice. 
+
+
+So you could say 'well why not just import the `fetchTodos` from a module and pass them in at `UserHomePage`?'. Well, then we'd have to be module mocking `UserHomePage` when we go to test it!
+
+
+### Dependency Injection 3 - Inject Via Context
+
+👍 This is the approach I recommend. 👍
+
+In this example, instead of accessing the `fetchTodos` function via props, we access it via a hook, which gets the function from context. 
+
+We first create some React Context to provide the `fetchTodos` function 
+
+```jsx
+//FetchTodosProvider.jsx
+
+import React from "react"; 
+
+// Our default ('real') function
+const defaultFetchTodos =  async () => {
+    const res = await fetch('https://jsonplaceholder.typicode.com/todos');
+    const json = await res.json();
+    return json; 
+}; 
+
+// Create the context and instantiate defaults
+export const FetchTodosContext = React.createContext({
+    fetchTodos: defaultFetchTodos
+}); 
+
+// Create a provider component 
+export const FetchTodosProvider = (props) => {
+    const {fetchTodos, children} = props; 
+    return <FetchTodosContext.Provider fetchTodos = {fetchTodos}>
+        {children}
+    </FetchTodosContext.Provider>
+}
+// Create a hook to access the fetchTodos function 
+export const useFetchTodos = () => {
+    return React.useContext(FetchTodosContext).fetchTodos; 
+}
+
+```
+
+We can now access `fetchTodos` via the hook: 
+
+```js
+    // Get the fetchTodos function from the hook. 
+    const fetchTodos = useFetchTodos();
+```
+
+Our test can now look like this: 
+
+```jsx
+describe('Example 3 - <TodoList/>', () => {
+    it("Shows the todo after loading has completed", async () => {
+        
+
+        const fakeFetchTodos = jest.fn().mockResolvedValue([
+            {
+                "userId": 1,
+                "id": 1,
+                "title": "foo", 
+                "completed": false
+              },
+        ])
+                // Render the component
+
+        render(
+        <FetchTodosProvider fetchTodos = {fakeFetchTodos}>
+            <TodoList />
+        </FetchTodosProvider>
+        );
+
+        //...
+```
+
+Very similar to the 'injecting via props' solution - but now we don't have that problem with prop drilling. 
+
+Using this context pattern has other advantages, namely that you can use the `FetchTodosContext` for manging your todos _state_ as well. This way if you have say three different components that need to now the current state of the todos, they all have access to the same state in the context, rather than each managing their own state. 
+
+
+
+
+### Dependency Injection 4 - Inject Via HOC
+
+I include this example for posterity. 
+
+
+
 
 
 
