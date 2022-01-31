@@ -496,6 +496,8 @@ export const useFetchTodos = () => {
 
 ```
 
+☝️ There is a good argument for not providing default services. See part three. 
+
 We can now access `fetchTodos` via the hook: 
 
 ```js
@@ -533,12 +535,106 @@ Very similar to the 'injecting via props' solution - but now we don't have that 
 
 Using this context pattern has other advantages, namely that you can use the `FetchTodosContext` for manging your todos _state_ as well. This way if you have say three different components that need to now the current state of the todos, they all have access to the same state in the context, rather than each managing their own state. 
 
+As your code base grows, managing all these different services that you need to mock out may become cumbersome. You can solve this by creating a `TestContextProvider` which contains _all_ the various context providers you may be using, and 
 
 
-
-### Dependency Injection 4 - Inject Via HOC
+### Dependency Injection 4 - Inject Via Higher Order Function/Higher Order Component
 
 I include this example for posterity. 
+
+React hooks in function components are a little bit magic, some of them like `useState` behave differently depending on whether this is the first time you've called a function or a subsequent call. 
+
+This is certainly not functional in the sense of functional programming, which is why I take care to call them _function_ components, and not _function**al**_ components. 
+
+But I digress. All that said, hooks are convenient, and I like them. 
+
+However, if we did want a properly functional way of injecting dependencies just where they are needed, a higher order function will do the trick. 
+
+Essentially, we inject the dependency via a prop as we did in example 2. 
+
+We now create a function that is responsible for passing the service in: 
+
+```jsx
+export const withFetchTodosService = (Component) => () =>  {
+    async function fetchTodos () {
+        const res = await fetch('https://jsonplaceholder.typicode.com/todos');
+        const json = await res.json();
+    
+        return json; 
+    }
+
+    return <Component fetchTodos = {fetchTodos}/>
+}
+
+export const ServicedTodoList = withFetchTodosService(TodoList);
+```
+
+Now, if we need to write tests for `TodoList` we write tests as we did in example 2. 
+
+But in our application and elsewhere we used the `ServicedTodoList`. 
+
+This solves the issue of prop drilling that we had in issue 2. 
+
+However, it reintroduces the problem of 'if this component happens to get rendered as part of another components test, it'll make real API calls'. 
+
+To get around this, we could add a conditional to our HOF: 
+
+```js
+export const withFetchTodosService = (Component) => () =>  {
+
+    cosnt  fetchTodos = process.env.USE_REAL_SERVICES === 'true'? async () =>  {
+        const res = await fetch('https://jsonplaceholder.typicode.com/todos');
+        const json = await res.json();
+    
+        return json; 
+    } : async () => {
+        return [
+                {
+                "userId": 1,
+                "id": 1,
+                "title": "foo", 
+                "completed": false
+              },
+        ]
+    }
+
+    return <Component fetchTodos = {fetchTodos}/>
+}
+```
+
+But this is gross. We have no way of changing the behaviour of our test service. We're writing conditionals everywhere. 
+
+We could go down a path of somewhere in application we call call a function that configures what function the `withFetchTodosService` will inject. eg: 
+
+```js
+//TodoList4b/TodoList.jsx
+
+let fetchTodos = async () =>  {
+    const res = await fetch('https://jsonplaceholder.typicode.com/todos');
+    const json = await res.json();
+
+    return json; 
+}; 
+
+export const setFetchTodosFn = (fn) => {
+    // Note we are doing a module mutatation here. 
+    fetchTodos = fn; 
+}
+
+export const withFetchTodosService = (Component) => () => {
+    return <div>
+        <Component fetchTodos = {fetchTodos}/>
+    </div>; 
+}
+
+export const ServicedTodoList = withFetchTodosService(TodoList);
+```
+
+But this is getting hard to reason about, I really don't like that module mutation, and you know, that's basically what we're doing with the context provider, we're saying 'This the state of our services that we want to mount this component in'. 
+
+🧐 This does take us to another interesting discussion though, within a React context we can just use Context, but what about for plain ol' JavaScript programming, how would we inject dependencies without the `useContext` hook? Let's talk about that in a later section. 
+
+
 
 
 

@@ -1,28 +1,27 @@
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import React from 'react';
-import { TodoList2 } from './TodoList2';
+import {TodoList} from "./TodoList"; 
 
-// By calling mock on just the module name, jest will _auto_mock_ the functions in it
-jest.mock('./todoListService2'); 
+// Mock the module
+jest.mock('./todoListService');
 
-// Now the thing that is imported, will be a `jest.fn` mock function. 
-import {fetchTodos} from "./todoListService2"; 
+// Import it, so we have access to it. 
+import {fetchTodos} from "./todoListService";
 
-describe('<TodoList2/>', () => {
-    it("Shows the todo after loading has completed", async () => {
-
-        // Decide what the fetchTodos function should do when called
+describe('Example 1b - <TodoList/>', () => {
+    it.skip("Shows the todo after loading has completed", async () => {
+ 
         fetchTodos.mockResolvedValue([
             {
                 "userId": 1,
                 "id": 1,
-                "title": "foo",
+                "title": "bar", // Changing the title to bar
                 "completed": false
               },
         ]);
 
         // Render the component
-        render(<TodoList2 />);
+        render(<TodoList />);
 
         // Assert that the loading text is there 
         const loadingText = screen.getByText("Loading...");
@@ -32,7 +31,8 @@ describe('<TodoList2/>', () => {
         await waitForElementToBeRemoved(loadingText);
 
         // Check for the existence of one of our todos
-        const todoText = screen.getByText("foo");
+        const todoText = screen.getByText("bar");
         expect(todoText).toBeInTheDocument();
+
     });
 });

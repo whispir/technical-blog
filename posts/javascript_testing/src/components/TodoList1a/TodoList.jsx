@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { fetchTodos } from './todoListService2';
-export const TodoList2 = () => {
+import { fetchTodos } from './todoListService';
+export const TodoList = () => {
 
     const [isLoading, setIsLoading] = useState(true); 
     const [todos, setTodos] = useState([]);

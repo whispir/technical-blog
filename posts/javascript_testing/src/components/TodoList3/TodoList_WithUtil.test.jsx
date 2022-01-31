@@ -25,8 +25,6 @@ describe('Example 3 - utils example - <TodoList/>', () => {
         // Wait for the loading text to disappear
         await waitForElementToBeRemoved(loadingText);
 
-
-        screen.debug();
         // Check for the existence of one of our todos
         const todoText = screen.getByText("foo");
         expect(todoText).toBeInTheDocument();
