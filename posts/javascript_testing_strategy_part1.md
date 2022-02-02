@@ -19,6 +19,7 @@ ie. involves the DOM, browser APIs etc.
 
 - Use RTL. 
 - Individual tests should run quickly. It's ok if the entire suite takes a while, but of course, faster is better. 
+- Should be deterministic. 
 - These are the tests that devs should run most often. 
 
 ### Real Browser Tests 
@@ -27,12 +28,13 @@ ie. involves the DOM, browser APIs etc.
 - It's ok if these take longer. 
 - Devs _should_ be able to run these on their local machine, but they don't _need_ to as part of their development workflow.
 - If you can make something a unit test instead, then do. 
+- It's OK if they're not deterministic (eg, can run against a deployed application). CCypress has good retry functionality. 
 
 Cypress requires a deployed application to run against. This means that often your frontend will also  require some kind of real backend to be talking to (see integrated tests). 
 
 ## Backend Specific
 
-- ie. involves running a node process
+- ie. testing code that will run on a node process. 
 
 Testing your backend can pose challenges, depending on what your backend looks like, generally there are 2.5 options: 
 
@@ -264,6 +266,9 @@ You shouldn't need to network your microservices for running unit tests on them.
 
 
 
+
+
+**Everything past here is draft/doesn't belong here**. 
 
 
 
